@@ -8,7 +8,6 @@
 #include <string.h>
 #include <strings.h>
 #include <sstream>
-
 #include <unordered_map>
 
 
@@ -30,11 +29,13 @@
 
 #define OK 200
 #define NOT_FOUND 404
-
+#define BAD_REQUEST 400
+#define SERVER_ERROR 500
 
 
 #define WEB_ROOT "wwwroot"
 #define HOME_PAGE "index.html"
+#define PAGE_404 "404.html"
 
 #define HTTP_VERSION "http/1.0"
 
@@ -75,22 +76,23 @@ class ProtocolUtil{
 		{
 			switch(code)
 			{
-
-				case 200:
+	 			case 200:
 					return "OK";
 				case 404:
-					return "NOT FOUND";
+					return "Not Found";
+	 			case 400:
+					return "Bad Request";
+				case 500:
+					return "Internal Server Error";
 				default:
-					return "UNKNOWN";
+					return "Unknown";
 			}
 		}
 
 		static std::string SuffixToType(const std::string &suffix_)
 		{
 			return stuffix_map[suffix_];
-
 		}
-
 };
 
 class Request{
@@ -122,7 +124,7 @@ class Request{
 			 ,resource_size(0)
 			 ,content_length(-1)
 			 ,resource_suffix(".html")
-	{}
+		{}
 
 		std::string &GetParam()
 		{
@@ -134,7 +136,7 @@ class Request{
 			std::string cl_ = head_kv["Content-Length"];
 			if(!cl_.empty())
 			{
-				std::stringstream ss(cl_);
+		 		std::stringstream ss(cl_);
 				ss >> content_length;
 			}
 			return content_length;
@@ -158,6 +160,10 @@ class Request{
 			return resource_suffix;
 		}
 
+	    void SetSuffix(std::string suffix_)
+		{
+			resource_suffix = suffix_;
+		}
 
 		/*获取资源路径*/
 		std::string &GetPath()
@@ -165,6 +171,10 @@ class Request{
 			return path;
 		}
 
+		void SetPath(std::string &path_)
+		{
+			path = path_;
+		}
 		/*请求行解析*/
 		void RequestLineParse()
 		{
@@ -178,20 +188,18 @@ class Request{
 			/*先判断方法*/
 			if(strcasecmp(method.c_str(), "GET") == 0)
 			{
-
-
-				std::size_t pos_ = uri.find('?');
+			 	std::size_t pos_ = uri.find('?');
 				if(std::string::npos != pos_)
 				{
 
-					/*有参数*/
+		 			/*有参数*/
 					cgi = true;
 					path +=uri.substr(0, pos_);
 					param = uri.substr(pos_ + 1);
 				}
 				else
 				{
-					/*无参数*/
+		 			/*无参数*/
 					path += uri;
 				}
 
@@ -227,21 +235,19 @@ class Request{
 			/*有疑问*/
 			struct stat st;
 			if(stat(path.c_str(), &st) < 0)
-			{
+			{	
 				LOG(WARNING, "path is not found!");
 				return  false;
 			}
 			if(S_ISDIR(st.st_mode))
 			{
-
-
 				path += "/";
 				path += HOME_PAGE;
 			}
 			else
 			{
-				if((st.st_mode & S_IXUSR) ||\
-						(st.st_mode & S_IXGRP) ||\
+ 				if((st.st_mode & S_IXUSR) ||\
+ 						(st.st_mode & S_IXGRP) ||\
 						(st.st_mode & S_IXOTH))
 				{
 					cgi = true;
@@ -262,9 +268,8 @@ class Request{
 		{
 			int start = 0;
 			while(start < rq_head.size())
-			{
-
-				std::size_t pos = rq_head.find('\n', start);
+			{	
+	 			std::size_t pos = rq_head.find('\n', start);
 				if(std::string::npos == pos)
 				{
 					break;
@@ -275,13 +280,12 @@ class Request{
 
 
 					LOG(INFO, "substr is not empty!");
-
 					ProtocolUtil::MakeKV(head_kv, sub_string_);
 				}
 				else
 				{
 					LOG(INFO, "substr is empty!");
-					break;
+	 				break;
 				}
 
 				start = pos + 1;
@@ -298,7 +302,6 @@ class Request{
 			}
 			return false;
 		}
-
 		bool IsCgi()
 		{
 			return cgi;
@@ -357,7 +360,6 @@ class Response{
 			if(fd >= 0)
 				close(fd);
 		}
-
 };	
 
 class Connect{
@@ -374,42 +376,32 @@ class Connect{
 			char c = 'x';
 			while(c != '\n')
 			{
-
-
-				/*每次读取一个字符*/
+	 			/*每次读取一个字符*/
 				ssize_t s = recv(sock, &c, 1, 0);
 
 				/*这里分三种情况，请求行结尾分别比为\r,\n,\r\n;
 				 * 我们都统一处理成\n的形式*/
 				if(s > 0)
 				{
-					if(c == '\r')
-
-
+ 					if(c == '\r')
 					{
-						/*MSG_PEEK会让recv从sock里面在读取一个字符,
-
+ 						/*MSG_PEEK会让recv从sock里面在读取一个字符,
 						 * 用于判断下一个字符是否为\n,
 						 * 但是并不会删除当前独到的这个字符*/
 						recv(sock, &c, 1, MSG_PEEK);
 						if(c == '\n')
 						{
-							/*如果当前字符是\n,说明是\r\n结尾,此时在读取掉\n*/
+	 						/*如果当前字符是\n,说明是\r\n结尾,此时在读取掉\n*/
 							recv(sock, &c, 1, 0);
-
-
 						}
 						else 
 						{
-							/*否则,说明以\r结尾,此时把c赋值给\n即可*/
+	 						/*否则,说明以\r结尾,此时把c赋值给\n即可*/
 							c = '\n';
-
-
 						}
 					}
 
 					/*这里就说明,是普通字符或者\n,直接插入即可*/
-
 
 					line_.push_back(c);
 				}
@@ -419,7 +411,6 @@ class Connect{
 
 				}
 			}
-
 			return line_.size();
 		}
 
@@ -430,9 +421,7 @@ class Connect{
 			std::string line_;
 			while(line_ != "\n")
 			{
-
-
-				line_ = "";
+	 			line_ = "";
 				RecvOneLine(line_);
 				head_ += line_;
 			}
@@ -445,10 +434,9 @@ class Connect{
 			int i_ = 0;
 			while(i_ < len_)
 			{
-
-
-				recv(sock, &c_, 1, 0);
+	 			recv(sock, &c_, 1, 0);
 				text_.push_back(c_);
+				i_++;
 			}
 
 			param_ = text_;
@@ -472,9 +460,9 @@ class Connect{
 			}
 			else
 			{
-				int &fd = rsp_->fd;
-				
-				sendfile(sock, fd, NULL, rq_->GetResourceSize());
+				//std::cout<<"send"<<std::endl;
+				int &fd = rsp_->fd;			
+				sendfile(sock, fd, NULL, rq_->GetResourceSize());//有疑惑
 			}
 		}
 
@@ -493,7 +481,6 @@ class Entry{
 			if(rq_->IsCgi())
 			{
 					ProcessCgi(conn_, rq_, rsp_);
-
 			}
 			else
 			{
@@ -517,13 +504,12 @@ class Entry{
 			pid_t id = fork();
 			if(id < 0)
 			{
-				code_ = NOT_FOUND;
+ 	 			code_ = NOT_FOUND;
 				return ;
 			}
 			else if(id == 0)
 			{
-
-				/*子进程*/
+ 	 			/*子进程*/
 				close(input[1]);
 				close(output[0]);
 
@@ -534,8 +520,6 @@ class Entry{
 
 				putenv((char*)cl_env.c_str());
 
-
-
 				/*将文件描述符input[0]里面的值拷贝一份出来，赋值给0*/
 				dup2(input[0],0);
 				dup2(output[1],1);
@@ -544,8 +528,7 @@ class Entry{
 			}
 			else
 			{
-		
-				close(input[0]);
+	 			close(input[0]);
 				close(output[1]);
 
 				size_t size_ = param_.size();
@@ -557,11 +540,8 @@ class Entry{
 				while( total_ < size_ && \
 						(curr_ = write(input[1], p_ + total_, size_ - total_)) > 0)
 				{
-
 					total_ += curr_;
-
 				}
-
 
 				char c;
 				while(read(output[0], &c, 1) >0)
@@ -579,16 +559,13 @@ class Entry{
 				rq_->SetResourceSize(rsp_text_.size());
 
 				rsp_->MakeResponseHead(rq_);
-
 				conn_->SendResponse(rsp_, rq_, true);
-
 			}
-
-
 		}
 
 		static void ProcessNonCgi(Connect *&conn_, Request *&rq_, Response *&rsp_)
 		{
+			//std::cout<<"ProcessNOncgi"<<std::endl;
 			int &code_ = rsp_->code;
 			rsp_->MakeStatusLine();
 			rsp_->MakeResponseHead(rq_);
@@ -596,18 +573,54 @@ class Entry{
 			conn_->SendResponse(rsp_, rq_, false);
 		}
 
-		static void *HandlerRequest(void *arg_)
+		static void Process404(Connect *&conn_, Request *&rq_, Response *&rsp_)
 		{
+			//std::cout<<"process404"<<std::endl;
+			std::string path_ = WEB_ROOT;
+			path_ += "/";
+			path_ += PAGE_404;
+
+			/*将path下的文件信息存放在st结构体中*/
+			struct stat st;
+			stat(path_.c_str(), &st);
+			
+			rq_->SetResourceSize(st.st_size);
+			rq_->SetSuffix(".html");
+			rq_->SetPath(path_);
+
+			ProcessNonCgi(conn_, rq_, rsp_);
+		}
+
+		static void HandlerError(Connect *&conn_, Request *&rq_, Response *&rsp_)
+		{
+			int &code_ = rsp_->code;
+			switch(code_)
+			{
+ 	 	 		case 400:
+					break;
+				case 404:
+	 				Process404(conn_, rq_, rsp_);
+					break;
+				case 500:
+					break;
+				case 503:
+					break;
+				default:std::cout << "Unknown code";
+					break;
+			}
+		}
+
+		static int  HandlerRequest(int sock_)
+		{
+
 			/*用sock_来获取已经连接的socket*/
 
-			int sock_ = *(int*)arg_;
-			delete  (int *)arg_;
-
+		
 			Connect *conn_ = new Connect(sock_);
 			Request *rq_  = new Request();
 			Response *rsp_  = new Response();
 
-			int &code_ = rsp_->code;//用	来设置rsp的状态码
+			int &code_ = rsp_->code;//用来设置rsp的状态码
 
 			/*获取请求行*/
 			conn_->RecvOneLine(rq_->rq_line);
@@ -618,10 +631,9 @@ class Entry{
 			/*判断请求方法*/
 			if(!rq_->IsMethodLegal())
 			{
-
-
-
-				code_ = NOT_FOUND;
+				/*如果方法不对,得先接受完请求,再处理响应*/
+				conn_->RecvRequestHead(rq_->rq_head);
+				code_ = BAD_REQUEST;
 				goto end;
 			}
 
@@ -631,10 +643,7 @@ class Entry{
 			/*判断路径是否合法*/
 			if(!rq_->IsPathLegal())
 			{
-
-
-
-				code_ = NOT_FOUND;
+	 			code_ = NOT_FOUND;
 				goto end;
 			}
 
@@ -647,12 +656,10 @@ class Entry{
 			if(rq_->RequestHeadParse())
 			{
 				LOG(INFO, "parse head done!");
-
 			}
 			else
 			{
-
-				code_ = NOT_FOUND;
+				code_ = BAD_REQUEST;
 				goto end;
 
 			}
@@ -660,9 +667,7 @@ class Entry{
 			/*判断是否需要获取请求正文,如果是GET方法,则不需要读取正文*/
 			if(rq_->IsNeedRecvText())
 			{
-
-
-				conn_->RecvRequestText(rq_->rq_text,rq_->GetContentLength(),\
+			 	conn_->RecvRequestText(rq_->rq_text,rq_->GetContentLength(),\
 						rq_->GetParam());		
 			}
 
@@ -672,14 +677,12 @@ class Entry{
 end:
 			if(code_ != OK)
 			{
-
-
+				HandlerError(conn_, rq_, rsp_);
 			}
 			delete conn_;
 			delete rq_;
 			delete rsp_;
-
-
+			return code_;
 		}
 };
 

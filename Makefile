@@ -3,7 +3,7 @@ cc=g++
 LDFLAGS=-lpthread
 
 
-PHONY:all
+.PHONY:all
 all:$(bin) 
 
 $(bin):HttpdServer.cc

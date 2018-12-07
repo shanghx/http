@@ -3,12 +3,13 @@
 
 #include <pthread.h>
 #include "ProtocolUtil.hpp"
-
+#include "ThreadPool.hpp"
 class HttpdServer{
 
 	private:
 		int listen_sock;//监听socket
 		int port;//端口
+		ThreadPool *tp;//线程池变量
 	public:
 		/*构造函数*/
 		HttpdServer(int port_):listen_sock(-1),port(port_)
@@ -21,11 +22,9 @@ class HttpdServer{
 			listen_sock = socket(AF_INET, SOCK_STREAM, 0);
 			if(listen_sock < 0)
 			{
-				LOG(ERROR, "create socket error!");
-			
+				LOG(ERROR, "create socket error!");		
 				exit(2);
 			}
-
 			/*端口复用,当服务器挂掉时可以立即重启*/
 			int opt_ = 1;
 			setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt_, sizeof(opt_));
@@ -39,22 +38,23 @@ class HttpdServer{
 			/*socket和地址绑定*/
 			if(bind(listen_sock, (struct sockaddr*)&local_, sizeof(local_)) < 0)
 			{
-
 				LOG(ERROR, "bind socket error!");
 				exit(3);
 			}
 
 			/*开始监听*/
 			if(listen(listen_sock, 5) < 0)
-			{
+			{	
 				LOG(ERROR, "listen socket error!");
-
-
 				exit(4);
 			}
+
 			/*到这一步,说明已经监听到socket了*/
 			LOG(INFO, "InitServer Success!");
 
+			/*此时要将线程池初始化*/
+			tp = new ThreadPool();
+			tp->InitThreadPool();
 		}
 
 
@@ -73,32 +73,22 @@ class HttpdServer{
 				{
 					LOG(WARNING,"accept error!");
 					continue;
-
 				}
 				
-				/*创建线程来处理连接*/
-				LOG(INFO,"Get New Client, Create Thread Handler Request...");
-				pthread_t tid_;
-				int *sockp_ = new int;
-				*sockp_ = sock_;
-				pthread_create(&tid_, NULL, Entry::HandlerRequest, (void*)sockp_);
-				
-			}
-			
+				Task t;
+				t.SetTask(sock_, Entry::HandlerRequest);
+				tp->PushTask(t);
+			}	
 		}
 		
-
-
 		/*析构函数*/
 		~HttpdServer()
 		{
 			if(listen_sock != -1)
 			{
 				close(listen_sock);
-
 			}
 			port = -1;
-
 		}
 };
 
