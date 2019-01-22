@@ -138,7 +138,7 @@ class ThreadPool{
 		void PopTask(Task &t_)
 		{
 			t_ = task_queue.front();
-			task_queue.pop();//有疑问
+			task_queue.pop();
 		}
 
 		void Stop()
@@ -149,7 +149,7 @@ class ThreadPool{
 
 			while(thread_idle_num > 0)
 			{
-				WakeupAllThread();//有疑问
+				WakeupAllThread();
 			}
 		}
 
