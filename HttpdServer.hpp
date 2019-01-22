@@ -33,7 +33,7 @@ class HttpdServer{
 			struct sockaddr_in local_;
 			local_.sin_family = AF_INET;
 			local_.sin_port = htons(port);
-			local_.sin_addr.s_addr = INADDR_ANY;//有疑问
+			local_.sin_addr.s_addr = INADDR_ANY;
 
 			/*socket和地址绑定*/
 			if(bind(listen_sock, (struct sockaddr*)&local_, sizeof(local_)) < 0)
