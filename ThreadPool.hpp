@@ -119,7 +119,7 @@ class ThreadPool{
 			for(; i_ < thread_total_num; i_++)
 			{
 				pthread_t tid;
-				pthread_create(&tid, NULL, thread_routine, this);//有疑问
+				pthread_create(&tid, NULL, thread_routine, this);
 			}
 		}
 
