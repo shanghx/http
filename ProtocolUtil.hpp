@@ -120,7 +120,7 @@ class Request{
 		Request()
 			:blank("\n")
 			 ,cgi(false)
-			 ,path(WEB_ROOT)//有疑问
+			 ,path(WEB_ROOT)
 			 ,resource_size(0)
 			 ,content_length(-1)
 			 ,resource_suffix(".html")
@@ -232,7 +232,6 @@ class Request{
 		/*判断路径是否合法*/
 		bool IsPathLegal()
 		{
-			/*有疑问*/
 			struct stat st;
 			if(stat(path.c_str(), &st) < 0)
 			{	
@@ -462,7 +461,7 @@ class Connect{
 			{
 				//std::cout<<"send"<<std::endl;
 				int &fd = rsp_->fd;			
-				sendfile(sock, fd, NULL, rq_->GetResourceSize());//有疑惑
+				sendfile(sock, fd, NULL, rq_->GetResourceSize());
 			}
 		}
 
