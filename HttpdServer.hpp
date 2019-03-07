@@ -34,7 +34,7 @@ class HttpdServer{
       struct sockaddr_in local_;
       local_.sin_family = AF_INET;
       local_.sin_port = htons(port);
-      local_.sin_addr.s_addr = INADDR_ANY;//有疑问
+      local_.sin_addr.s_addr = INADDR_ANY;
 
       /*socket和地址绑定*/
       if(bind(listen_sock, (struct sockaddr*)&local_, sizeof(local_)) < 0)
@@ -129,24 +129,6 @@ class HttpdServer{
          }
         }
       }
-      //var for(;;)
-      /*		{
-            struct sockaddr_in peer_;
-            socklen_t len_ = sizeof(peer_);
-
-      /*建立连接*/
-      /*			int sock_ = accept(listen_sock, (struct sockaddr*)&peer_, &len_);
-              if(sock_ < 0)
-              {
-              LOG(WARNING,"accept error!");
-              continue;
-              }
-
-              Task t;
-              t.SetTask(sock_, Entry::HandlerRequest);
-              tp->PushTask(t);
-              }	
-              }*/
 
       /*析构函数*/
       ~HttpdServer()
